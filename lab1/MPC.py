@@ -19,12 +19,15 @@ class MPC:
         self.readFile("resorces/Number_28.txt")
         self.getStat()
         self.plotHnF()
-        self.confBands()
-        self.resGraph()
-        self.qqTest(self.data)
+        self.ug()
+        #self.confBands()
+        #self.resGraph()
+        #self.qqTest(self.data)
+        print('--------------')
         self.filteredData()
-        self.resGraph()
-        self.qqTest(self.data)
+        self.ug()
+        #self.resGraph()
+        #self.qqTest(self.data)
         
 
     def readFile(self, filename):
@@ -110,14 +113,38 @@ class MPC:
         plt.tight_layout()
         plt.show()
 
+    def ug(self):
+        plt.figure(figsize=(12, 6))
+        data = self.data
+        # Гистограмма
+        plt.subplot(1, 2, 1)
+        self.resGraph()
+        plt.subplot(1,2,2)
+        self.confBands()
+        plt.show()
+        chi2_stat, chi2_p = self.chi2_norm_test(data)
+        print("\nКритерий хи-квадрат:")
+        print(f"Статистика = {chi2_stat:.4f} < 5.99 -> гипотеза не отвергается")
+
+        # Статистические тесты для проверки нормальности
+        # Тест Шапиро-Уилка
+        shapiro_test = shapiro(data)
+        print(f"Тест Шапиро-Уилка: статистика = {shapiro_test.statistic}, p-value = {shapiro_test.pvalue} > 0.05 -> гипотеза не отвергается")
+
+        # Тест на нормальность (D'Agostino and Pearson's test)
+        norm_test = normaltest(data)
+        print(f"Тест на нормальность: статистика = {norm_test.statistic}, p-value = {norm_test.pvalue}")
+
     def filteredData(self):
-        #z_scores = zscore(self.data)
+        z_scores = zscore(self.data)
 
         # Фильтрация выбросов
-        #self.filtDate = self.data[(z_scores < 3) & (z_scores > -3)]
-        for num in self.data:
-            if num < 3.5:
-                self.filtDate = np.append(self.filtDate, num)
+        self.filtDate = self.data[(z_scores < 3) & (z_scores > -3)]
+        
+        # for num in self.data:
+        #     if num < 3.5:
+        #         self.filtDate = np.append(self.filtDate, num)
+
         #print(self.filtDate)
         plt.figure(figsize=(6, 6))
         self.plotNormedHistogram(self.filtDate)
@@ -146,7 +173,7 @@ class MPC:
         y_upper_95 = np.minimum(y_ecdf + d_95, 1)  # Верхняя граница (0.95)
 
         # Построение графика
-        plt.figure(figsize=(8, 6))
+        #plt.figure(figsize=(8, 6))
 
         # ЭФР
         plt.step(x_ecdf, y_ecdf, where='post', color='blue', label='ЭФР')
@@ -163,7 +190,7 @@ class MPC:
         plt.title('ЭФР с доверительными полосами')
         plt.legend()
         plt.grid(True)
-        plt.show()
+        #plt.show()
 
     def qqTest(self, data):
         # Визуальный анализ: гистограмма
@@ -171,7 +198,7 @@ class MPC:
 
         # Гистограмма
         plt.subplot(1, 2, 1)
-        self.plotNormedHistogram(data, 7)
+        self.plotNormedHistogram(data, 5)
 
         # Q-Q plot
         plt.subplot(1, 2, 2)
@@ -182,10 +209,14 @@ class MPC:
         plt.tight_layout()
         plt.show()
 
+        chi2_stat, chi2_p = self.chi2_norm_test(data)
+        print("\nКритерий хи-квадрат:")
+        print(f"Статистика = {chi2_stat:.4f} < 5.99 -> гипотеза не отвергается")
+
         # Статистические тесты для проверки нормальности
         # Тест Шапиро-Уилка
         shapiro_test = shapiro(data)
-        print(f"Тест Шапиро-Уилка: статистика = {shapiro_test.statistic}, p-value = {shapiro_test.pvalue}")
+        print(f"Тест Шапиро-Уилка: статистика = {shapiro_test.statistic}, p-value = {shapiro_test.pvalue} > 0.05 -> гипотеза не отвергается")
 
         # Тест на нормальность (D'Agostino and Pearson's test)
         norm_test = normaltest(data)
@@ -193,11 +224,11 @@ class MPC:
 
     def resGraph(self):
         # Построение графика
-        plt.figure(figsize=(10, 6))
+        #plt.figure(figsize=(10, 6))
 
         # Гистограмма данных
-        self.plotNormedHistogram(self.data, 7)
-
+        self.plotNormedHistogram(self.data, 5)
+            
         # Теоретическая плотность распределения
         x = np.linspace(min(self.data) - 1, max(self.data) + 1, 1000)  # Диапазон значений для построения графика
         pdf = norm.pdf(x, self.stat['mean'], self.stat['var'])  # Плотность распределения
@@ -207,6 +238,47 @@ class MPC:
         plt.xlabel('Значения')
         plt.ylabel('Плотность')
         plt.title('Гистограмма данных и теоретическая плотность распределения')
-        plt.legend()
+        #plt.legend()
         plt.grid(True)
-        plt.show()
+        #plt.show()
+
+
+    def chi2_norm_test(self, data, bins=5):
+
+        mu, std = np.mean(data), np.std(data)
+        # Разбиваем данные на интервалы
+        counts, bins = np.histogram(data, bins=bins)
+        
+        # Вычисляем ожидаемые частоты
+        cdf = stats.norm.cdf(bins, mu, std)
+        expected = np.diff(cdf) * len(data)
+        
+        # Объединяем интервалы с ожидаемыми частотами < 5
+        while np.any(expected < 5):
+            # Находим интервал с минимальной ожидаемой частотой
+            min_idx = np.argmin(expected)
+            
+            # Объединяем с соседним (предыдущим или следующим)
+            if min_idx == 0:
+                merge_with = 1
+            elif min_idx == len(expected)-1:
+                merge_with = min_idx-1
+            else:
+                merge_with = min_idx-1 if expected[min_idx-1] < expected[min_idx+1] else min_idx+1
+            
+            # Объединяем интервалы
+            new_expected = expected[min_idx] + expected[merge_with]
+            new_count = counts[min_idx] + counts[merge_with]
+            
+            # Удаляем старые и вставляем новые значения
+            idx_to_keep = min(min_idx, merge_with)
+            expected = np.delete(expected, [min_idx, merge_with])
+            expected = np.insert(expected, idx_to_keep, new_expected)
+            counts = np.delete(counts, [min_idx, merge_with])
+            counts = np.insert(counts, idx_to_keep, new_count)
+        
+        # Вычисляем статистику хи-квадрат
+        chi2 = np.sum((counts - expected)**2 / expected)
+        p_value = 1 - stats.chi2.cdf(chi2, len(counts)-3)  # 3 = 1 (параметры) + 2 (границы)
+        
+        return chi2, p_value

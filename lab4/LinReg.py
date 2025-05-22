@@ -55,7 +55,7 @@ class LinReg:
         print(f'R² = {R_2},   R²_н = {R_2n}\n')
         self.print_Di(a, std_)
 
-        for i in range(self.Y):
+        for i in range(np.size(self.Y)):
             rmX = np.delete(self.X, i)
             rmY = np.delete(self.Y, i)
             
